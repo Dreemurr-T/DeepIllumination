@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.misc import imread, imresize, imsave
+# from scipy.misc import imread, imresize, imsave
+from imageio import imread, imsave
 import torch
 
 
