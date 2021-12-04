@@ -2,6 +2,7 @@ import os
 from os.path import join
 import argparse
 from math import log10
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -14,7 +15,8 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from model import G, D, weights_init
 from util import load_image, save_image
-from skimage.measure import compare_ssim as ssim
+# from skimage.measure import compare_ssim as ssim
+from skimage import measure
 
 
 
@@ -23,8 +25,8 @@ parser.add_argument('--dataset', required=True, help='output from unity')
 parser.add_argument('--train_batch_size', type=int, default=1, help='batch size for training')
 parser.add_argument('--test_batch_size', type=int, default=1, help='batch size for testing')
 parser.add_argument('--n_epoch', type=int, default=200, help='number of iterations')
-parser.add_argument('--n_channel_input', type=int, default=3, help='number of input channels')
-parser.add_argument('--n_channel_output', type=int, default=3, help='number of output channels')
+parser.add_argument('--n_channel_input', type=int, default=4, help='number of input channels')
+parser.add_argument('--n_channel_output', type=int, default=4, help='number of output channels')
 parser.add_argument('--n_generator_filters', type=int, default=64, help='number of initial generator filters')
 parser.add_argument('--n_discriminator_filters', type=int, default=64, help='number of initial discriminator filters')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate')
@@ -130,19 +132,30 @@ def train(epoch):
     for (i, images) in enumerate(train_data):
         netD.zero_grad()
         (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (images[0], images[1], images[2], images[3], images[4])
-        albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
-        direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
-        normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
-        depth.data.resize_(depth_cpu.size()).copy_(depth_cpu)
-        gt.data.resize_(gt_cpu.size()).copy_(gt_cpu)
+        # albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
+        # direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
+        # normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
+        # depth.data.resize_(depth_cpu.size()).copy_(depth_cpu)
+        # gt.data.resize_(gt_cpu.size()).copy_(gt_cpu)
+        # print(albedo.size())
+        # print(albedo_cpu.size())
+        albedo.resize_(albedo_cpu.size()).copy_(albedo_cpu)
+        direct.resize_(direct_cpu.size()).copy_(direct_cpu)
+        normal.resize_(normal_cpu.size()).copy_(normal_cpu)
+        depth.resize_(depth_cpu.size()).copy_(depth_cpu)
+        gt.resize_(gt_cpu.size()).copy_(gt_cpu)
+        # print(albedo.size())
+        # print(albedo_cpu.size())
         output = netD(torch.cat((albedo, direct, normal, depth, gt), 1))
-        label.data.resize_(output.size()).fill_(real_label)
+        # label.data.resize_(output.size()).fill_(real_label)
+        label.resize_(output.size()).fill_(real_label)
         err_d_real = criterion(output, label)
         err_d_real.backward()
         d_x_y = output.data.mean()
         fake_B = netG(torch.cat((albedo, direct, normal, depth), 1))
         output = netD(torch.cat((albedo, direct, normal, depth, fake_B.detach()), 1))
-        label.data.resize_(output.size()).fill_(fake_label)
+        # label.data.resize_(output.size()).fill_(fake_label)
+        label.resize_(output.size()).fill_(fake_label)
         err_d_fake = criterion(output, label)
         err_d_fake.backward()
         d_x_gx = output.data.mean()
@@ -151,7 +164,8 @@ def train(epoch):
 
         netG.zero_grad()
         output = netD(torch.cat((albedo, direct, normal, depth, fake_B), 1))
-        label.data.resize_(output.size()).fill_(real_label)
+        # label.data.resize_(output.size()).fill_(real_label)
+        label.resize_(output.size()).fill_(real_label)
         err_g = criterion(output, label) + opt.lamda \
             * criterion_l1(fake_B, gt) 
         err_g.backward()
@@ -161,8 +175,8 @@ def train(epoch):
             epoch,
             i,
             len(train_data),
-            err_d.data[0],
-            err_g.data[0],
+            err_d.item(),
+            err_g.item(),
             d_x_y,
             d_x_gx,
             d_x_gx_2,
@@ -184,24 +198,29 @@ def save_checkpoint(epoch):
     if not os.path.exists(os.path.join("validation", opt.dataset)):
         os.mkdir(os.path.join("validation", opt.dataset))
 
-    for index, images in enumerate(val_data):
-        (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (images[0], images[1], images[2], images[3], images[4])
-        albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
-        direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
-        normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
-        depth.data.resize_(depth_cpu.size()).copy_(depth_cpu)
-        out = netG(torch.cat((albedo, direct, normal, depth), 1))
-        out = out.cpu()
-        out_img = out.data[0]
-        save_image(out_img,"validation/{}/{}_Fake.png".format(opt.dataset, index))
-        save_image(gt_cpu[0],"validation/{}/{}_Real.png".format(opt.dataset, index))
-        save_image(direct_cpu[0],"validation/{}/{}_Direct.png".format(opt.dataset, index))
+    if epoch == n_epoch:
+        for index, images in enumerate(val_data):
+    #         (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (images[0], images[1], images[2], images[3], images[4])
+    #         # albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
+    #         # direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
+    #         # normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
+    #         # depth.data.resize_(depth_cpu.size()).copy_(depth_cpu)
+            albedo.resize_(albedo_cpu.size()).copy_(albedo_cpu)
+            direct.resize_(direct_cpu.size()).copy_(direct_cpu)
+            normal.resize_(normal_cpu.size()).copy_(normal_cpu)
+            depth.resize_(depth_cpu.size()).copy_(depth_cpu)
+            out = netG(torch.cat((albedo, direct, normal, depth), 1))
+            out = out.cpu()
+            out_img = out.data[0]
+            save_image(out_img,"validation/{}/{}_Fake.png".format(opt.dataset, index))
+            save_image(gt_cpu[0],"validation/{}/{}_Real.png".format(opt.dataset, index))
+            save_image(direct_cpu[0],"validation/{}/{}_Direct.png".format(opt.dataset, index))
 
 
 
 
-
-for epoch in range(n_epoch):
-    train(epoch+lastEpoch)
-    if epoch % 1 == 0:
-        save_checkpoint(epoch+lastEpoch)
+if __name__ =='__main__':
+    for epoch in tqdm(range(n_epoch)):
+        train(epoch+lastEpoch)
+        if epoch % 1 == 0:
+            save_checkpoint(epoch+lastEpoch)
