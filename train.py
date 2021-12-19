@@ -1,8 +1,9 @@
 import os
 from os.path import join
 import argparse
-from math import log10
+from math import e, log10
 from tqdm import tqdm
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -16,27 +17,36 @@ from torch.autograd import Variable
 from model import G, D, weights_init
 from util import load_image, save_image
 # from skimage.measure import compare_ssim as ssim
-from skimage import measure
-
+# from skimage.metrics import structural_similarity as ssim
+from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
 
 parser = argparse.ArgumentParser(description='DeepRendering-implemention')
 parser.add_argument('--dataset', required=True, help='output from unity')
-parser.add_argument('--train_batch_size', type=int, default=1, help='batch size for training')
-parser.add_argument('--test_batch_size', type=int, default=1, help='batch size for testing')
-parser.add_argument('--n_epoch', type=int, default=200, help='number of iterations')
-parser.add_argument('--n_channel_input', type=int, default=4, help='number of input channels')
-parser.add_argument('--n_channel_output', type=int, default=4, help='number of output channels')
-parser.add_argument('--n_generator_filters', type=int, default=64, help='number of initial generator filters')
-parser.add_argument('--n_discriminator_filters', type=int, default=64, help='number of initial discriminator filters')
+parser.add_argument('--train_batch_size', type=int,
+                    default=1, help='batch size for training')
+parser.add_argument('--test_batch_size', type=int,
+                    default=1, help='batch size for testing')
+parser.add_argument('--n_epoch', type=int, default=50,
+                    help='number of iterations')
+parser.add_argument('--n_channel_input', type=int,
+                    default=4, help='number of input channels')
+parser.add_argument('--n_channel_output', type=int,
+                    default=4, help='number of output channels')
+parser.add_argument('--n_generator_filters', type=int,
+                    default=64, help='number of initial generator filters')
+parser.add_argument('--n_discriminator_filters', type=int,
+                    default=64, help='number of initial discriminator filters')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1')
 parser.add_argument('--cuda', action='store_true', help='cuda')
 parser.add_argument('--resume_G', help='resume G')
 parser.add_argument('--resume_D', help='resume D')
-parser.add_argument('--workers', type=int, default=4, help='number of threads for data loader')
+parser.add_argument('--workers', type=int, default=4,
+                    help='number of threads for data loader')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
-parser.add_argument('--lamda', type=int, default=100, help='L1 regularization factor')
+parser.add_argument('--lamda', type=int, default=10,
+                    help='L1 regularization factor')
 opt = parser.parse_args()
 
 cudnn.benchmark = True
@@ -55,14 +65,17 @@ val_set = DataLoaderHelper(test_dir)
 batch_size = opt.train_batch_size
 n_epoch = opt.n_epoch
 
-train_data = DataLoader(dataset=train_set, num_workers=opt.workers, batch_size=opt.train_batch_size, shuffle=True)
-val_data = DataLoader(dataset=val_set, num_workers=opt.workers, batch_size=opt.test_batch_size, shuffle=False)
+train_data = DataLoader(dataset=train_set, num_workers=opt.workers,
+                        batch_size=opt.train_batch_size, shuffle=True)
+val_data = DataLoader(dataset=val_set, num_workers=opt.workers,
+                      batch_size=opt.test_batch_size, shuffle=False)
 
 print('=> Building model')
 
 netG = G(opt.n_channel_input*4, opt.n_channel_output, opt.n_generator_filters)
 netG.apply(weights_init)
-netD = D(opt.n_channel_input*4, opt.n_channel_output, opt.n_discriminator_filters)
+netD = D(opt.n_channel_input*4, opt.n_channel_output,
+         opt.n_discriminator_filters)
 netD.apply(weights_init)
 
 criterion = nn.BCELoss()
@@ -113,7 +126,8 @@ if opt.resume_G:
         n_epoch = n_epoch - lastEpoch
         netG.load_state_dict(checkpoint['state_dict_G'])
         optimizerG.load_state_dict(checkpoint['optimizer_G'])
-        print("=> loaded generator checkpoint '{}' (epoch {})".format(opt.resume_G, checkpoint['epoch']))
+        print("=> loaded generator checkpoint '{}' (epoch {})".format(
+            opt.resume_G, checkpoint['epoch']))
 
     else:
         print("=> no checkpoint found")
@@ -127,11 +141,18 @@ if opt.resume_D:
         print("=> loaded discriminator checkpoint '{}'".format(opt.resume_D))
 
 
+def restore_image(image):
+    image = image.add_(1).div_(2)
+    image *= 255.0
+    image = image.clip(0, 255)
+    return image
+
 
 def train(epoch):
     for (i, images) in enumerate(train_data):
         netD.zero_grad()
-        (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (images[0], images[1], images[2], images[3], images[4])
+        (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
+            images[0], images[1], images[2], images[3], images[4])
         # albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
         # direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
         # normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
@@ -153,7 +174,8 @@ def train(epoch):
         err_d_real.backward()
         d_x_y = output.data.mean()
         fake_B = netG(torch.cat((albedo, direct, normal, depth), 1))
-        output = netD(torch.cat((albedo, direct, normal, depth, fake_B.detach()), 1))
+        output = netD(
+            torch.cat((albedo, direct, normal, depth, fake_B.detach()), 1))
         # label.data.resize_(output.size()).fill_(fake_label)
         label.resize_(output.size()).fill_(fake_label)
         err_d_fake = criterion(output, label)
@@ -166,12 +188,16 @@ def train(epoch):
         output = netD(torch.cat((albedo, direct, normal, depth, fake_B), 1))
         # label.data.resize_(output.size()).fill_(real_label)
         label.resize_(output.size()).fill_(real_label)
+        ssim_loss = SSIM(win_size=11, win_sigma=1.5,
+                         data_range=1, size_average=True, channel=4)
+        _ssim_loss = 1-ssim_loss(fake_B, gt)
+        # print(_ssim_loss.item())
         err_g = criterion(output, label) + opt.lamda \
-            * criterion_l1(fake_B, gt) 
+            * 0.3*criterion_l1(fake_B, gt) + opt.lamda * 0.7 * _ssim_loss
         err_g.backward()
         d_x_gx_2 = output.data.mean()
         optimizerG.step()
-        print ('=> Epoch[{}]({}/{}): Loss_D: {:.4f} Loss_G: {:.4f} D(x): {:.4f} D(G(z)): {:.4f}/{:.4f}'.format(
+        print('=> Epoch[{}]({}/{}): Loss_D: {:.4f} Loss_G: {:.4f} D(x): {:.4f} D(G(z)): {:.4f}/{:.4f}'.format(
             epoch,
             i,
             len(train_data),
@@ -180,17 +206,22 @@ def train(epoch):
             d_x_y,
             d_x_gx,
             d_x_gx_2,
-            ))
+        ))
+
 
 def save_checkpoint(epoch):
     if not os.path.exists("checkpoint"):
         os.mkdir("checkpoint")
     if not os.path.exists(os.path.join("checkpoint", opt.dataset)):
         os.mkdir(os.path.join("checkpoint", opt.dataset))
-    net_g_model_out_path = "checkpoint/{}/netG_model_epoch_{}.pth".format(opt.dataset, epoch)
-    net_d_model_out_path = "checkpoint/{}/netD_model_epoch_{}.pth".format(opt.dataset, epoch)
-    torch.save({'epoch':epoch+1, 'state_dict_G': netG.state_dict(), 'optimizer_G':optimizerG.state_dict()}, net_g_model_out_path)
-    torch.save({'state_dict_D': netD.state_dict(), 'optimizer_D':optimizerD.state_dict()}, net_d_model_out_path)
+    net_g_model_out_path = "checkpoint/{}/netG_model_epoch_{}.pth".format(
+        opt.dataset, epoch)
+    net_d_model_out_path = "checkpoint/{}/netD_model_epoch_{}.pth".format(
+        opt.dataset, epoch)
+    torch.save({'epoch': epoch+1, 'state_dict_G': netG.state_dict(),
+               'optimizer_G': optimizerG.state_dict()}, net_g_model_out_path)
+    torch.save({'state_dict_D': netD.state_dict(),
+               'optimizer_D': optimizerD.state_dict()}, net_d_model_out_path)
     print("Checkpoint saved to {}".format("checkpoint" + opt.dataset))
 
     if not os.path.exists("validation"):
@@ -200,7 +231,8 @@ def save_checkpoint(epoch):
 
     if epoch == n_epoch:
         for index, images in enumerate(val_data):
-    #         (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (images[0], images[1], images[2], images[3], images[4])
+            (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
+                images[0], images[1], images[2], images[3], images[4])
     #         # albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
     #         # direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
     #         # normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
@@ -212,14 +244,15 @@ def save_checkpoint(epoch):
             out = netG(torch.cat((albedo, direct, normal, depth), 1))
             out = out.cpu()
             out_img = out.data[0]
-            save_image(out_img,"validation/{}/{}_Fake.png".format(opt.dataset, index))
-            save_image(gt_cpu[0],"validation/{}/{}_Real.png".format(opt.dataset, index))
-            save_image(direct_cpu[0],"validation/{}/{}_Direct.png".format(opt.dataset, index))
+            save_image(
+                out_img, "validation/{}/{}_Fake.png".format(opt.dataset, index))
+            save_image(
+                gt_cpu[0], "validation/{}/{}_Real.png".format(opt.dataset, index))
+            save_image(
+                direct_cpu[0], "validation/{}/{}_Direct.png".format(opt.dataset, index))
 
 
-
-
-if __name__ =='__main__':
+if __name__ == '__main__':
     for epoch in tqdm(range(n_epoch)):
         train(epoch+lastEpoch)
         if epoch % 1 == 0:
