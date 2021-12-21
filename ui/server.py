@@ -13,16 +13,12 @@ app = Flask(__name__)
 def root():
     return render_template("index.html")
 
-@app.route('/upload', methods=['post'])
-def render():
+def infer():
+    """
+    Infer the result by plugin the inputs from save file.
+    The output will be saved in result.png.
+    """
     global netG
-    # load image
-    request.files.get('albedo').save('albedo.png')
-    request.files.get('normal').save('normal.png')
-    request.files.get('depth').save('depth.png')
-    request.files.get('direct').save('direct.png')
-
-    #### model inference starts ####
 
     albedo_path = 'albedo.png'
     direct_path = 'direct.png'
@@ -42,13 +38,22 @@ def render():
     start_time = time()
     out = netG(torch.cat((albedo, direct, normal, depth), 1))
     elapsed_time = time() - start_time
+    global elapsed_time_str
     elapsed_time_str = "{:.3f}s".format(elapsed_time)
 
     out_img = out.data[0]
 
     save_image(out_img, 'result.png')
 
-    ####   model inference ends  ####
+@app.route('/upload', methods=['post'])
+def render():
+    # load image
+    request.files.get('albedo').save('albedo.png')
+    request.files.get('normal').save('normal.png')
+    request.files.get('depth').save('depth.png')
+    request.files.get('direct').save('direct.png')
+
+    infer()
 
     return render_template("render.html", elapsed_time=elapsed_time_str)
 
@@ -58,6 +63,17 @@ def index(img_name):
         image = f.read()
         resp = Response(image, mimetype="image/png")
     return resp
+
+@app.route('/rawupload', methods=['post'])
+def rawrender():
+    request.files.get('albedo').save('albedo.png')
+    request.files.get('normal').save('normal.png')
+    request.files.get('depth').save('depth.png')
+    request.files.get('direct').save('direct.png')
+
+    infer()
+
+    return index('result')
 
 if __name__ == "__main__":
     print("loading model ...")
