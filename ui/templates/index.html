@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Illumination</title>
+</head>
+<style>
+    label{
+        display: inline-block;
+        width: 5em;
+    }
+    img{
+        vertical-align: middle;
+    }
+</style>
+<body>
+    <div>
+        <form id="main" method="post" action="/upload" enctype="multipart/form-data">
+            <label for="albedo">albedo</label><input type="file" accept="image/png" name="albedo" onchange="show(this.files, 'albedoimg')">
+            <img id="albedoimg" width="200px"><br>
+            <label for="normal">normal</label><input type="file" accept="image/png" name="normal" onchange="show(this.files, 'normalimg')">
+            <img id="normalimg" width="200px"><br>
+            <label for="depth">depth</label><input type="file" accept="image/png" name="depth" onchange="show(this.files, 'depthimg')">
+            <img id="depthimg" width="200px"><br>
+            <label for="direct">direct</label><input type="file" accept="image/png" name="direct" onchange="show(this.files, 'directimg')">
+            <img id="directimg" width="200px"><br>
+            <input type="submit" value="渲染">
+        </form>
+    </div>
+</body>
+<script>
+    function show(f, target){
+        var reader = new FileReader();
+        reader.onload = function(e){
+            var img = document.getElementById(target);
+            img.src = e.target.result;
+        }
+        reader.readAsDataURL(f[0]);
+    }
+</script>
+</html>

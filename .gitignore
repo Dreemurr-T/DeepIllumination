@@ -1,2 +1,8 @@
 datasrc/
 checkpoint/
+
+config.json
+*.pyc
+*.zip
+*.pth
+*.pyc
