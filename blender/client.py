@@ -46,7 +46,8 @@ def on_async(context):
     }
 
     r = requests.post(url, files=files)
+    result_img = Image.open(io.BytesIO(r.content))
 
     # meta is defined as (maxRgb, maxAlpha)
     # see 2.79/scripts/modules/pycompositor.py
-    out[:] = pycompositor.pil_to_array(Image.open(io.BytesIO(r.content)), (1.0, 1.0))
+    out[:] = pycompositor.pil_to_array(result_img, (1.0, 1.0))
