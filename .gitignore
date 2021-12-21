@@ -6,3 +6,5 @@ config.json
 *.zip
 *.pth
 *.pyc
+
+*.blend1
