@@ -21,5 +21,6 @@ files = {
 }
 
 r = requests.post(url, files=files)
+
 with open('result.png', 'wb') as f:
     f.write(r.content)
