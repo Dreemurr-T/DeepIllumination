@@ -5,7 +5,7 @@
 import bpy
 import pycompositor
 from PIL import Image
-import requests
+import requests, io
 
 url = 'http://localhost:5000/rawupload'
 
@@ -24,7 +24,27 @@ def on_async(context):
     outputs = context["outputs"]
     out = outputs[0]
 
-    albedo_img, meta = pycompositor.array_to_pil(images[0])
-    
+    albedo_img, albedo_meta = pycompositor.array_to_pil(images[0])
+    direct_img, direct_meta = pycompositor.array_to_pil(images[1])
+    normal_img, normal_meta = pycompositor.array_to_pil(images[2])
+    depth_img, depth_meta = pycompositor.array_to_pil(images[3])
 
-    out[:] = images[0]
+    albedo = io.BytesIO()
+    albedo_img.save(albedo, format='PNG')
+    normal = io.BytesIO() 
+    normal_img.save(normal, format='PNG')
+    depth = io.BytesIO()
+    depth_img.save(depth, format='PNG')
+    direct = io.BytesIO()
+    direct_img.save(direct, format='PNG')
+
+    files = {
+        'albedo': ('albedo.png', albedo.getvalue(), 'image/png'),
+        'normal': ('normal.png', normal.getvalue(), 'image/png'),
+        'depth': ('depth.png', depth.getvalue(), 'image/png'),
+        'direct': ('direct.png', direct.getvalue(), 'image/png'),
+    }
+
+    r = requests.post(url, files=files)
+
+    out[:] = pycompositor.pil_to_array(Image.open(io.BytesIO(r.content)), albedo_meta)
