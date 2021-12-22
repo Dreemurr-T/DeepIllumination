@@ -227,7 +227,7 @@ def save_checkpoint(epoch):
     if not os.path.exists(os.path.join("validation", opt.dataset)):
         os.mkdir(os.path.join("validation", opt.dataset))
 
-    if epoch == n_epoch:
+    if epoch == n_epoch - 1:
         for index, images in enumerate(val_data):
             (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
                 images[0], images[1], images[2], images[3], images[4])
