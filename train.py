@@ -14,10 +14,8 @@ from data import DataLoaderHelper
 
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from model import G, D, weights_init
+from model import Generator, Discriminator, weights_init
 from util import load_image, save_image
-# from skimage.measure import compare_ssim as ssim
-# from skimage.metrics import structural_similarity as ssim
 from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
 
@@ -72,9 +70,9 @@ val_data = DataLoader(dataset=val_set, num_workers=opt.workers,
 
 print('=> Building model')
 
-netG = G(opt.n_channel_input*4, opt.n_channel_output, opt.n_generator_filters)
+netG = Generator(opt.n_channel_input*4, opt.n_channel_output, opt.n_generator_filters)
 netG.apply(weights_init)
-netD = D(opt.n_channel_input*4, opt.n_channel_output,
+netD = Discriminator(opt.n_channel_input*4, opt.n_channel_output,
          opt.n_discriminator_filters)
 netD.apply(weights_init)
 
