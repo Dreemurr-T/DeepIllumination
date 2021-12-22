@@ -33,7 +33,7 @@ def on_async(context):
     gt = io.BytesIO()
     gt_img.save(gt, format="PNG")
 
-    file_suffix = "_" + str(time.time()) + ".png"
+    file_suffix = "_" + str(int(time.time())) + ".png"
 
     files = {
         'gt': ('gt' + file_suffix, gt.getvalue(), "image/png"),

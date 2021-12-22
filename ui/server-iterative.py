@@ -97,6 +97,8 @@ def gttrain():
 
     gt_file.save(gt_filename)
 
+    
+
     return Response()
 
 if __name__ == "__main__":

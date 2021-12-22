@@ -49,7 +49,7 @@ def on_async(context):
     # v = tree.nodes.new('CompositorNodeViewer')
     # which will be used for our additional output for training.
 
-    file_suffix = "_" + str(time.time()) + ".png"
+    file_suffix = "_" + str(int(time.time())) + ".png"
 
     files = {
         'albedo': ('albedo' + file_suffix, albedo.getvalue(), 'image/png'),
