@@ -18,6 +18,10 @@ from model import Generator, Discriminator, weights_init
 from util import load_image, save_image
 from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
+from tensorboardX import SummaryWriter
+
+writer = SummaryWriter('./Result')
+
 
 parser = argparse.ArgumentParser(description='DeepRendering-implemention')
 parser.add_argument('--dataset', required=True, help='output from unity')
@@ -114,6 +118,9 @@ label = Variable(label)
 
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+schedulerD = optim.lr_scheduler.StepLR(optimizerD,step_size=50,gamma=0.5)
+schedulerG = optim.lr_scheduler.StepLR(optimizerG,step_size=50,gamma=0.5)
+
 lastEpoch = 0
 
 if opt.resume_G:
@@ -149,15 +156,10 @@ def restore_image(image):
 def train(epoch):
     for (i, images) in enumerate(train_data):
         netD.zero_grad()
+        optimizerD.zero_grad()
+        optimizerG.zero_grad()
         (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
             images[0], images[1], images[2], images[3], images[4])
-        # albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
-        # direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
-        # normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
-        # depth.data.resize_(depth_cpu.size()).copy_(depth_cpu)
-        # gt.data.resize_(gt_cpu.size()).copy_(gt_cpu)
-        # print(albedo.size())
-        # print(albedo_cpu.size())
         albedo.resize_(albedo_cpu.size()).copy_(albedo_cpu)
         direct.resize_(direct_cpu.size()).copy_(direct_cpu)
         normal.resize_(normal_cpu.size()).copy_(normal_cpu)
@@ -186,9 +188,10 @@ def train(epoch):
         output = netD(torch.cat((albedo, direct, normal, depth, fake_B), 1))
         # label.data.resize_(output.size()).fill_(real_label)
         label.resize_(output.size()).fill_(real_label)
-        ssim_loss = SSIM(win_size=11, win_sigma=1.5,
+        ssim_value = SSIM(win_size=11, win_sigma=1.5,
                          data_range=1, size_average=True, channel=4)
-        _ssim_loss = 1-ssim_loss(fake_B, gt)
+        _ssim_loss = 1-ssim_value(fake_B, gt)
+        # print(1-_ssim_loss)
         # print(_ssim_loss.item())
         err_g = criterion(output, label) + opt.lamda \
             * 0.3*criterion_l1(fake_B, gt) + opt.lamda * 0.7 * _ssim_loss
@@ -205,6 +208,12 @@ def train(epoch):
             d_x_gx,
             d_x_gx_2,
         ))
+        if i % 10 == 0:
+            niter = epoch * len(train_data) + i
+            writer.add_scalar('Train/Loss', err_g.item(), niter)
+            writer.add_scalar('Test/SSIM', ssim_value, niter)
+    schedulerD.step()
+    schedulerG.step()
 
 
 def save_checkpoint(epoch):
@@ -228,26 +237,27 @@ def save_checkpoint(epoch):
         os.mkdir(os.path.join("validation", opt.dataset))
 
     if epoch == n_epoch - 1:
-        for index, images in enumerate(val_data):
-            (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
-                images[0], images[1], images[2], images[3], images[4])
-    #         # albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
-    #         # direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
-    #         # normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
-    #         # depth.data.resize_(depth_cpu.size()).copy_(depth_cpu)
-            albedo.resize_(albedo_cpu.size()).copy_(albedo_cpu)
-            direct.resize_(direct_cpu.size()).copy_(direct_cpu)
-            normal.resize_(normal_cpu.size()).copy_(normal_cpu)
-            depth.resize_(depth_cpu.size()).copy_(depth_cpu)
-            out = netG(torch.cat((albedo, direct, normal, depth), 1))
-            out = out.cpu()
-            out_img = out.data[0]
-            save_image(
-                out_img, "validation/{}/{}_Fake.png".format(opt.dataset, index))
-            save_image(
-                gt_cpu[0], "validation/{}/{}_Real.png".format(opt.dataset, index))
-            save_image(
-                direct_cpu[0], "validation/{}/{}_Direct.png".format(opt.dataset, index))
+        with torch.no_grad():
+            for index, images in enumerate(val_data):
+                (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
+                    images[0], images[1], images[2], images[3], images[4])
+        #         # albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
+        #         # direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
+        #         # normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
+        #         # depth.data.resize_(depth_cpu.size()).copy_(depth_cpu)
+                albedo.resize_(albedo_cpu.size()).copy_(albedo_cpu)
+                direct.resize_(direct_cpu.size()).copy_(direct_cpu)
+                normal.resize_(normal_cpu.size()).copy_(normal_cpu)
+                depth.resize_(depth_cpu.size()).copy_(depth_cpu)
+                out = netG(torch.cat((albedo, direct, normal, depth), 1))
+                out = out.cpu()
+                out_img = out.data[0]
+                save_image(
+                    out_img, "validation/{}/{}_Fake.png".format(opt.dataset, index))
+                save_image(
+                    gt_cpu[0], "validation/{}/{}_Real.png".format(opt.dataset, index))
+                save_image(
+                    direct_cpu[0], "validation/{}/{}_Direct.png".format(opt.dataset, index))
 
 
 if __name__ == '__main__':
