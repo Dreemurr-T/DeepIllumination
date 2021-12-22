@@ -9,7 +9,7 @@ https://github.com/bitsawer/blender-custom-nodes/releases/tag/v0.3.0
 
 
 We use http for transferring blender to server,
-since blender could not import relative path modules.
+<s>since blender could not import relative path modules.</s>
 
 ## Compositing Setup on Cycles
 

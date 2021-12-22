@@ -1,13 +1,17 @@
-# blender plugin for make use of deep illumination result.
+# blender plugin for making use of deep illumination result.
 # the model could be trained by raw EEVEE inputs
 # and attempting to output the result like cycles.
 
 import bpy
 import pycompositor
 from PIL import Image
-import requests, io
+import requests, io, os
 
 url = 'http://localhost:5000/rawupload'
+
+basedir = os.path.dirname(bpy.data.filepath)
+if not basedir:
+    raise Exception("Blend file is not saved")
 
 def on_main(context):
     """on_main() is called in the main thread and can be used to access Blender and other libraries in a 
@@ -47,7 +51,12 @@ def on_async(context):
 
     r = requests.post(url, files=files)
     result_img = Image.open(io.BytesIO(r.content))
+    result_arr = pycompositor.pil_to_array(result_img, (1.0, 1.0))
+    pycompositor.array_to_pil(result_arr)[0].save(os.path.join(basedir,"result.png"))  # normal save here.
+
+    # maybe there is some defact that we need to do color correction for displaying.
+    result_arr[...,0:3] = result_arr[...,0:3] ** 2.2    # gamma correction=0.45
 
     # meta is defined as (maxRgb, maxAlpha)
     # see 2.79/scripts/modules/pycompositor.py
-    out[:] = pycompositor.pil_to_array(result_img, (1.0, 1.0))
+    out[:] = result_arr

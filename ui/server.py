@@ -4,7 +4,7 @@ import argparse
 from flask import Flask, request, render_template, Response
 import os
 os.sys.path.append("..") 
-from model import G,D
+from model_backup import G,D
 from util import load_image, save_image
 
 app = Flask(__name__)
