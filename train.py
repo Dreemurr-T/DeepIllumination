@@ -18,7 +18,7 @@ from model import Generator, Discriminator, weights_init
 from util import load_image, save_image
 from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 writer = SummaryWriter('./Result')
 
@@ -198,20 +198,17 @@ def train(epoch):
         err_g.backward()
         d_x_gx_2 = output.data.mean()
         optimizerG.step()
-        print('=> Epoch[{}]({}/{}): Loss_D: {:.4f} Loss_G: {:.4f} D(x): {:.4f} D(G(z)): {:.4f}/{:.4f}'.format(
+        print('=> Epoch[{}]({}/{}): Loss_D: {:.4f} Loss_G: {:.4f} '.format(
             epoch,
             i,
             len(train_data),
             err_d.item(),
-            err_g.item(),
-            d_x_y,
-            d_x_gx,
-            d_x_gx_2,
+            err_g.item()
         ))
         if i % 10 == 0:
             niter = epoch * len(train_data) + i
             writer.add_scalar('Train/Loss', err_g.item(), niter)
-            writer.add_scalar('Test/SSIM', ssim_value, niter)
+            writer.add_scalar('Test/SSIM', 1-_ssim_loss, niter)
     schedulerD.step()
     schedulerG.step()
 
