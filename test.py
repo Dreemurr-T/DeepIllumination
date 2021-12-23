@@ -10,8 +10,8 @@ from util import is_image, load_image, save_image
 parser = argparse.ArgumentParser(description='DeepRendering-implementation')
 parser.add_argument('--dataset', required=True, help='unity')
 parser.add_argument('--model', type=str, required=True, help='model file')
-parser.add_argument('--n_channel_input', type=int, default=3, help='input channel')
-parser.add_argument('--n_channel_output', type=int, default=3, help='output channel')
+parser.add_argument('--n_channel_input', type=int, default=4, help='input channel')
+parser.add_argument('--n_channel_output', type=int, default=4, help='output channel')
 parser.add_argument('--n_generator_filters', type=int, default=64, help="number of generator filters")
 opt = parser.parse_args()
 

@@ -23,7 +23,7 @@ class Generator(nn.Module):
 
         self.deconv1 = nn.ConvTranspose2d(n_filters*16,n_filters*16,4,2,1)
         self.deconv2 = nn.ConvTranspose2d(n_filters*8*4, n_filters*8, 4, 2, 1)
-        self.deconv3 = nn.ConvTranspose2d(n_filters*8*3, n_filters*4, 4, 2, 1)
+        self.deconv3 = nn.ConvTranspose2d(n_filters*8*2, n_filters*4, 4, 2, 1)
         self.deconv4 = nn.ConvTranspose2d(n_filters*8, n_filters*2, 4, 2, 1)
         self.deconv5 = nn.ConvTranspose2d(n_filters*4, n_filters, 4, 2, 1)
         self.deconv6 = nn.ConvTranspose2d(n_filters*2, n_channel_output, 4, 2, 1)
@@ -58,8 +58,8 @@ class Generator(nn.Module):
         decoder4 = self.dropout(self.norm2(self.deconv4(self.relu(decoder3))))
         decoder4 = torch.cat((decoder4,encoder2),1)
         decoder5 = self.dropout(self.norm1(self.deconv5(self.relu(decoder4))))
-        decoder5 = self.cat((decoder5,encoder1),1)
-        decoder6 = self.deconv6(self.relu(encoder5))
+        decoder5 = torch.cat((decoder5,encoder1),1)
+        decoder6 = self.deconv6(self.relu(decoder5))
         output = self.tanh(decoder6)
         return output
     

@@ -20,8 +20,6 @@ from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter('./Result')
-
 
 parser = argparse.ArgumentParser(description='DeepRendering-implemention')
 parser.add_argument('--dataset', required=True, help='output from unity')
@@ -252,6 +250,7 @@ def save_checkpoint(epoch):
 
 
 if __name__ == '__main__':
+    writer = SummaryWriter('./Result')
     for epoch in tqdm(range(n_epoch)):
         train(epoch+lastEpoch)
         if epoch % 1 == 0:
