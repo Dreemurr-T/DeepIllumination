@@ -20,14 +20,15 @@ from util import load_image, save_image
 # from skimage.metrics import structural_similarity as ssim
 from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
+checkpointdir = 'checkpoint'
 
 parser = argparse.ArgumentParser(description='DeepRendering-implemention')
-parser.add_argument('--dataset', required=True, help='output from unity')
+parser.add_argument('--dataset', default=".", help='output from unity')
 parser.add_argument('--train_batch_size', type=int,
                     default=1, help='batch size for training')
 parser.add_argument('--test_batch_size', type=int,
                     default=1, help='batch size for testing')
-parser.add_argument('--n_epoch', type=int, default=50,
+parser.add_argument('--n_epoch', type=int, default=25,
                     help='number of iterations')
 parser.add_argument('--n_channel_input', type=int,
                     default=4, help='number of input channels')
@@ -42,75 +43,13 @@ parser.add_argument('--beta1', type=float, default=0.5, help='beta1')
 parser.add_argument('--cuda', action='store_true', help='cuda')
 parser.add_argument('--resume_G', help='resume G')
 parser.add_argument('--resume_D', help='resume D')
-parser.add_argument('--workers', type=int, default=4,
+parser.add_argument('--workers', type=int, default=2,
                     help='number of threads for data loader')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 parser.add_argument('--lamda', type=int, default=10,
                     help='L1 regularization factor')
-if __name__ == "__main__":
-    # parse the main arguments
-    # other wise it is an import from other module
-    # will have the preset arguments.
-    opt = parser.parse_args()
-else:
-    checkpointdir = 'checkpoint'
-    # use pre-defined options.
-    class opt:
-        @property
-        def dataset(self):
-            return "."      # use current directory
-        @property
-        def train_batch_size(self):
-            return 1
-        @property
-        def test_batch_size(self):
-            return 1
-        @property
-        def n_epoch(self):
-            return 1        # for a faster iterative training
-        @property
-        def n_channel_input(self):
-            return 4
-        @property
-        def n_channel_output(self):
-            return 4
-        @property
-        def n_generator_filters(self):
-            return 64
-        @property
-        def n_discriminator_filters(self):
-            return 64
-        @property
-        def lr(self):
-            return 0.0002
-        @property
-        def beta1(self):
-            return 0.5
-        @property
-        def cuda(self):
-            return False
-        @property
-        def resume_G(self):
-            G_filelist = os.listdir(checkpointdir)
-            G_filelist = [x for x in G_filelist if x.startswith('netG')]
-            G_filelist.sort()
-            return os.path.join(checkpointdir, G_filelist[-1])
-        @property
-        def resume_D(self):
-            D_filelist = os.listdir(checkpointdir)
-            D_filelist = [x for x in D_filelist if x.startswith('netD')]
-            D_filelist.sort()
-            return os.path.join(checkpointdir, D_filelist[-1])
-        @property
-        def workers(self):
-            return 4
-        @property
-        def seed(self):
-            return 123
-        @property
-        def lamda(self):
-            return 10
-    opt = opt()
+
+opt = parser.parse_args()
 
 cudnn.benchmark = True
 
@@ -176,10 +115,19 @@ depth = Variable(depth)
 gt = Variable(gt)
 label = Variable(label)
 
-
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-lastEpoch = 0
+
+G_filelist = os.listdir(checkpointdir)
+G_filelist = [x for x in G_filelist if x.startswith('netG')]
+G_filelist.sort()
+
+if len(G_filelist)>0:
+    opt.resume_G = os.path.join(checkpointdir, G_filelist[-1])
+    lastEpoch = int(opt.resume_G.split("_")[3].split(".")[0])
+    opt.resume_D = os.path.join(checkpointdir, "netD_model_epoch_"+str(lastEpoch) + ".pth")
+else:
+    lastEpoch = 0
 
 if opt.resume_G:
     if os.path.isfile(opt.resume_G):
@@ -315,8 +263,8 @@ def save_checkpoint(epoch):
                 direct_cpu[0], "validation/{}/{}_Direct.png".format(opt.dataset, index))
 
 
-# if __name__ == '__main__':
-for epoch in tqdm(range(n_epoch)):
-    train(epoch+lastEpoch)
-    if epoch % 1 == 0:
-        save_checkpoint(epoch+lastEpoch)
+if __name__ == '__main__':
+    for epoch in tqdm(range(n_epoch)):
+        train(epoch+lastEpoch)
+        if epoch % 1 == 0:
+            save_checkpoint(epoch+lastEpoch)

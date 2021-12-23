@@ -1,7 +1,7 @@
 
 datasetdirT = 'dataset/train'
 datasetdirV = 'dataset/val'
-checkpointdirG = 'checkpoint'
+checkpointdir = 'checkpoint'
 
 def get_timestamp(filename):
     # make sure it contains the _

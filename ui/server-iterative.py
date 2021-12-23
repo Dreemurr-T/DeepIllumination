@@ -20,9 +20,9 @@ N_GENERATOR_FILTERS = 64
 def load_model():
     global netG, prev_G_path
 
-    checkpointlist = os.listdir(checkpointdirG)
+    checkpointlist = os.listdir(checkpointdir)
     checkpointlist.sort()
-    prev_G_path = os.path.join(checkpointdirG,checkpointlist[-1])
+    prev_G_path = os.path.join(checkpointdir,checkpointlist[-1])
     
     print("loading model " + prev_G_path + " ...")
     loaded_model = torch.load(prev_G_path, map_location=torch.device('cpu'))
@@ -102,14 +102,17 @@ def rawrender():
     normal_file.save(normal_filename)
     depth_file.save(depth_filename)
     direct_file.save(direct_filename)
-
+    
     # a copy for response
     # cannot use the same object for the defect.
     # TODO: use bitstream to avoid overhead.
-    shutil.copyfile(albedo_filename, 'albedo.png')
-    shutil.copyfile(normal_filename, 'normal.png')
-    shutil.copyfile(depth_filename, 'depth.png')
-    shutil.copyfile(direct_filename, 'direct.png')
+    try:
+        shutil.copyfile(albedo_filename, 'albedo.png')
+        shutil.copyfile(normal_filename, 'normal.png')
+        shutil.copyfile(depth_filename, 'depth.png')
+        shutil.copyfile(direct_filename, 'direct.png')
+    except shutil.SameFileError:
+        pass
 
     infer()
 
@@ -132,8 +135,8 @@ def gttrain():
             if timedelta < 10 and timedelta >= 0:
                 # use this batch for training.
                 for buffer in ["albedo", "direct", "normal", "depth"]:
-                    shutil.move(get_buffername(buffer, timestamp), os.path.join(datasetdirT, buffer))
-                gt_file.save(os.path.join(datasetdirT, "gt", get_buffername("gt", timestamp)))
+                    shutil.move(get_buffername(buffer, timestamp), os.path.join(datasetdirT, buffer, str(timestamp) + ".png"))
+                gt_file.save(os.path.join(datasetdirT, "gt", str(timestamp) + ".png"))
                 break   # no more move is needed.
 
     return Response()   # gt is received.
@@ -144,6 +147,9 @@ def root():
 
 if __name__ == "__main__":
     print(" starting service ...")
+
+    if not os.path.isdir("dataset"):
+        os.mkdir("dataset")
 
     if not os.path.isdir(datasetdirT):
         os.mkdir(datasetdirT)
