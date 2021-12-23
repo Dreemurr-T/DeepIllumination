@@ -1,95 +1,35 @@
-from time import time
+import time
 import os
-
-import torch
-os.sys.path.append("..") 
-from model_backup import G,D,weights_init
-
-# use pre-defined options.
-class opt:
-    @property
-    def dataset(self):
-        return "dataset"
-    @property
-    def train_batch_size(self):
-        return 1
-    @property
-    def test_batch_size(self):
-        return 1
-    @property
-    def n_epoch(self):
-        return 1 #
-    @property
-    def n_channel_input(self):
-        return 4
-    @property
-    def n_channel_output(self):
-        return 4
-    @property
-    def n_generator_filters(self):
-        return 64
-    @property
-    def n_discriminator_filters(self):
-        return 64
-    @property
-    def lr(self):
-        return 0.0002
-    @property
-    def beta1(self):
-        return 0.5
-    @property
-    def cuda(self):
-        return True
-    @property
-    def resume_G(self):
-        return "checkpoint/G"
-    @property
-    def resume_D(self):
-        return "checkpoint/D"
-    @property
-    def workers(self):
-        return 4
-    @property
-    def seed(self):
-        return 123
-    @property
-    def lamda(self):
-        return 10
-
-# override the options.
-opt = opt()
-
-# checkpointdir = 'checkpoint'
-# prev_G_path = 'default_G.pth'
-# prev_D_path = 'default_D.pth'
-
-# N_CHANNEL_INPUT = 4
-# N_CHANNEL_OUTPUT = 4
-# N_GENERATOR_FILTERS = 64
-# N_DISCRIMINATOR_FILTERS = 64
-
-# def load_model():
-#     G_filelist = os.listdir(os.path.join(checkpointdir, "G"))
-#     D_filelist = os.listdir(os.path.join(checkpointdir, "D"))
-#     G_filelist.sort()
-#     D_filelist.sort()
-
-#     global netG, netD
-#     netG = G(N_CHANNEL_INPUT * 4, N_CHANNEL_OUTPUT, N_GENERATOR_FILTERS)
-#     netD = D(N_CHANNEL_INPUT * 4, N_CHANNEL_OUTPUT, N_DISCRIMINATOR_FILTERS)
-
-#     if len(G_filelist) == 0:
-#         netG.apply(weights_init)
-#     else:
-#         netG.load_state_dict(torch.load(os.path.join(checkpointdir, "G", G_filelist[-1])))
-
-#     if len(D_filelist) == 0:
-#         netD.apply(weights_init)
-#     else:
-#         netD.load_state_dict(torch.load(os.path.join(checkpointdir, "D", D_filelist[-1])))
+import shutil
+from iterativeutil import *
 
 def train_epoch():
-    import train    # run the training process.
+
+    # record the train directory file.
+    train_list = os.listdir(os.path.join(datasetdirT,"albedo"))
+    train_list = [str(get_timestamp(x)) for x in train_list]
+
+    print("training ... ")
+    # run the training process.
+    os.sys.path.append("..") 
+    import train_backup
+
+    # time.sleep(10)
+
+    # after which, clean up the previous model.
+    # os.remove(train_backup.opt.resume_G)
+    # os.remove(train_backup.opt.resume_D)
+
+    # clean up val dir after training.
+    for buffer in ['albedo', 'direct', 'normal', 'depth', 'gt']:
+        val_dir = os.path.join(datasetdirV,buffer)
+        shutil.rmtree(val_dir)
+        os.mkdir(val_dir)
+    # move the train data to val.
+    for buffer in ['albedo', 'direct', 'normal', 'depth', 'gt']:
+        for i in range(len(train_list)):
+            filename = buffer + "_" + train_list[i] + ".png"
+            shutil.move(os.path.join(datasetdirT,buffer,filename), os.path.join(datasetdirV,buffer,filename))
 
 if __name__ == "__main__":
     while(True):

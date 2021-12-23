@@ -14,7 +14,7 @@ from data import DataLoaderHelper
 
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from model import G, D, weights_init
+from model_backup import G, D, weights_init
 from util import load_image, save_image
 # from skimage.measure import compare_ssim as ssim
 # from skimage.metrics import structural_similarity as ssim
@@ -47,7 +47,70 @@ parser.add_argument('--workers', type=int, default=4,
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 parser.add_argument('--lamda', type=int, default=10,
                     help='L1 regularization factor')
-opt = parser.parse_args()
+if __name__ == "__main__":
+    # parse the main arguments
+    # other wise it is an import from other module
+    # will have the preset arguments.
+    opt = parser.parse_args()
+else:
+    checkpointdir = 'checkpoint'
+    # use pre-defined options.
+    class opt:
+        @property
+        def dataset(self):
+            return "."      # use current directory
+        @property
+        def train_batch_size(self):
+            return 1
+        @property
+        def test_batch_size(self):
+            return 1
+        @property
+        def n_epoch(self):
+            return 1        # for a faster iterative training
+        @property
+        def n_channel_input(self):
+            return 4
+        @property
+        def n_channel_output(self):
+            return 4
+        @property
+        def n_generator_filters(self):
+            return 64
+        @property
+        def n_discriminator_filters(self):
+            return 64
+        @property
+        def lr(self):
+            return 0.0002
+        @property
+        def beta1(self):
+            return 0.5
+        @property
+        def cuda(self):
+            return False
+        @property
+        def resume_G(self):
+            G_filelist = os.listdir(checkpointdir)
+            G_filelist = [x for x in G_filelist if x.startswith('netG')]
+            G_filelist.sort()
+            return os.path.join(checkpointdir, G_filelist[-1])
+        @property
+        def resume_D(self):
+            D_filelist = os.listdir(checkpointdir)
+            D_filelist = [x for x in D_filelist if x.startswith('netD')]
+            D_filelist.sort()
+            return os.path.join(checkpointdir, D_filelist[-1])
+        @property
+        def workers(self):
+            return 4
+        @property
+        def seed(self):
+            return 123
+        @property
+        def lamda(self):
+            return 10
+    opt = opt()
 
 cudnn.benchmark = True
 
@@ -252,8 +315,8 @@ def save_checkpoint(epoch):
                 direct_cpu[0], "validation/{}/{}_Direct.png".format(opt.dataset, index))
 
 
-if __name__ == '__main__':
-    for epoch in tqdm(range(n_epoch)):
-        train(epoch+lastEpoch)
-        if epoch % 1 == 0:
-            save_checkpoint(epoch+lastEpoch)
+# if __name__ == '__main__':
+for epoch in tqdm(range(n_epoch)):
+    train(epoch+lastEpoch)
+    if epoch % 1 == 0:
+        save_checkpoint(epoch+lastEpoch)
