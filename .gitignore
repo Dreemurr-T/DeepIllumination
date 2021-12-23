@@ -1,6 +1,8 @@
 datasrc/
 checkpoint/
 validation/
+Result/
+result_ori/
 
 config.json
 *.pyc

@@ -1,6 +1,6 @@
 import argparse
 import os
-
+import time
 import torch
 from torch.autograd import Variable
 
@@ -10,8 +10,7 @@ from skimage.metrics import mean_squared_error as mse
 from skimage.metrics import structural_similarity as ssim
 from tqdm import tqdm
 
-ssim_score = 0
-mse_score = 0
+generating_time = 0
 
 parser = argparse.ArgumentParser(description='DeepRendering-implementation')
 parser.add_argument('--dataset', required=True, help='unity')
@@ -29,30 +28,32 @@ image_dir = 'dataset/{}/test/albedo'.format(opt.dataset)
 image_filenames = [x for x in os.listdir(image_dir) if is_image(x)]
 
 for image_name in tqdm(image_filenames):
-    albedo_image = load_image(root_dir + 'albedo/' + image_name)
-    direct_image = load_image(root_dir + 'direct/' + image_name)
-    normal_image = load_image(root_dir + 'normal/' + image_name)
-    depth_image = load_image(root_dir + 'depth/' + image_name)
-    gt_image = load_image(root_dir + 'gt/' + image_name)
+    netG.eval()
+    with torch.no_grad():
+        albedo_image = load_image(root_dir + 'albedo/' + image_name)
+        direct_image = load_image(root_dir + 'direct/' + image_name)
+        normal_image = load_image(root_dir + 'normal/' + image_name)
+        depth_image = load_image(root_dir + 'depth/' + image_name)
+        gt_image = load_image(root_dir + 'gt/' + image_name)
 
-    albedo = Variable(albedo_image).view(1, -1, 256, 256).cuda()
-    direct = Variable(direct_image).view(1, -1, 256, 256).cuda()
-    normal = Variable(normal_image).view(1, -1, 256, 256).cuda()
-    depth = Variable(depth_image).view(1, -1, 256, 256).cuda()
-    
-    netG = netG.cuda()
+        albedo = Variable(albedo_image).view(1, -1, 256, 256).cuda()
+        direct = Variable(direct_image).view(1, -1, 256, 256).cuda()
+        normal = Variable(normal_image).view(1, -1, 256, 256).cuda()
+        depth = Variable(depth_image).view(1, -1, 256, 256).cuda()
+        
+        netG = netG.cuda()
+        start_time = time.perf_counter()
+        out = netG(torch.cat((albedo, direct, normal, depth), 1))
+        end_time= time.perf_counter()
+        out = out.cpu()
+        out_img = out.data[0]
 
+        generating_time += (end_time-start_time)
+        if not os.path.exists("result"):
+            os.mkdir("result")
+        if not os.path.exists(os.path.join("result", opt.dataset)):
+            os.mkdir(os.path.join("result", opt.dataset))
+        save_image(out_img, "result/{}/{}".format(opt.dataset, image_name))
 
-    out = netG(torch.cat((albedo, direct, normal, depth), 1))
-    out = out.cpu()
-    out_img = out.data[0]
-    if not os.path.exists("result"):
-        os.mkdir("result")
-    if not os.path.exists(os.path.join("result", opt.dataset)):
-        os.mkdir(os.path.join("result", opt.dataset))
-    save_image(out_img, "result/{}/{}".format(opt.dataset, image_name))
-
-ssim_score /= len(image_filenames)
-mse_score /= len(image_filenames)
-
-print('SSIM = {:.4f}, MSE = {:.4f}'.format(ssim_score,mse_score))
+generating_time *= 1000
+print('Total generating time is {:.4f} ms, average is {:.4f} ms'.format(generating_time,generating_time/2000))

@@ -27,7 +27,7 @@ def save_image(image, filename):
     image = np.transpose(image, (1, 2, 0))
     image = image.astype(np.uint8)
     imsave(filename, image)
-    print ("Image saved as {}".format(filename))
+    # print ("Image saved as {}".format(filename))
 
 def is_image(filename):
     return any(filename.endswith(extension) for extension in [".png", ".jpg"])
