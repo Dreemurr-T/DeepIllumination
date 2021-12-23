@@ -47,7 +47,12 @@ parser.add_argument('--workers', type=int, default=4,
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 parser.add_argument('--lamda', type=int, default=50,
                     help='L1 regularization factor')
-opt = parser.parse_args()
+
+if __name__ == "__main__":
+    # parse the main arguments
+    # other wise it is an import from other module
+    # will have the preset arguments.
+    opt = parser.parse_args()
 
 cudnn.benchmark = True
 

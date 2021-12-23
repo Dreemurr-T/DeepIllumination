@@ -1,5 +1,6 @@
 datasrc/
 checkpoint/
+validation/
 
 config.json
 *.pyc
@@ -8,3 +9,6 @@ config.json
 *.pyc
 
 *.blend1
+
+ui/dataset
+ui/checkpoint
