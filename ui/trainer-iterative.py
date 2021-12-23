@@ -26,14 +26,17 @@ def train_epoch():
     else:
         lastEpoch = 0
 
+    train_backup.load_training_dataset()
     for i in range(train_backup.opt.n_epoch):
         train_backup.train(lastEpoch+i)
     train_backup.save_checkpoint(lastEpoch+1)
 
     # after which, clean up the previous model.
-    if train_backup.opt.resume_G:
-        os.remove(train_backup.opt.resume_G)
-        os.remove(train_backup.opt.resume_D)
+    if lastEpoch > 0:
+        previous_model = os.path.join(checkpointdir, "netG_model_epoch_" + str(lastEpoch) + ".pth")
+        if os.path.exists(previous_model):
+            os.remove(previous_model)
+            os.remove(previous_model.replace("netG","netD"))
 
     # clean up val dir after training.
     for buffer in ['albedo', 'direct', 'normal', 'depth', 'gt']:
