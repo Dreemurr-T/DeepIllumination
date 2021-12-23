@@ -11,7 +11,7 @@ from util import load_image, save_image
 app = Flask(__name__)
 
 datasetdir = 'dataset'
-checkpointdir = 'checkpoint'
+checkpointdirG = 'checkpoint/G'
 
 prev_G_path = 'default.pth'
 
@@ -22,12 +22,12 @@ N_GENERATOR_FILTERS = 64
 def load_model():
     global netG
 
-    checkpointlist = os.listdir(checkpointdir)
+    checkpointlist = os.listdir(checkpointdirG)
     checkpointlist.sort()
     prev_G_path = checkpointlist[-1]
     
     print("loading model " + prev_G_path + " ...")
-    loaded_model = torch.load(os.path.join(checkpointdir,prev_G_path), map_location=torch.device('cpu'))
+    loaded_model = torch.load(os.path.join(checkpointdirG,prev_G_path), map_location=torch.device('cpu'))
     netG = G(N_CHANNEL_INPUT * 4, N_CHANNEL_OUTPUT, N_GENERATOR_FILTERS)
     netG.load_state_dict(loaded_model['state_dict_G'])
 
@@ -158,9 +158,6 @@ if __name__ == "__main__":
         os.mkdir(os.path.join(datasetdir, 'normal'))
         os.mkdir(os.path.join(datasetdir, 'direct'))
         os.mkdir(os.path.join(datasetdir, 'gt'))
-
-    if not os.path.isdir(checkpointdir):
-        os.mkdir(checkpointdir)
 
     app.run()
     
