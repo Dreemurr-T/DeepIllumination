@@ -4,7 +4,7 @@ import os
 import torch
 from torch.autograd import Variable
 
-from model import G
+from model import Generator
 from util import is_image, load_image, save_image
 
 parser = argparse.ArgumentParser(description='DeepRendering-implementation')
@@ -16,7 +16,7 @@ parser.add_argument('--n_generator_filters', type=int, default=64, help="number 
 opt = parser.parse_args()
 
 netG_model = torch.load(opt.model)
-netG = G(opt.n_channel_input * 4, opt.n_channel_output, opt.n_generator_filters)
+netG = Generator(opt.n_channel_input * 4, opt.n_channel_output, opt.n_generator_filters)
 netG.load_state_dict(netG_model['state_dict_G'])
 root_dir = 'dataset/{}/test/'.format(opt.dataset)
 image_dir = 'dataset/{}/test/albedo'.format(opt.dataset)
