@@ -2,6 +2,7 @@ from time import time
 import torch
 import argparse
 from flask import Flask, request, render_template, Response
+import shutil
 import os
 os.sys.path.append("..") 
 from model_backup import G,D
@@ -9,7 +10,8 @@ from util import load_image, save_image
 
 app = Flask(__name__)
 
-train_queue = []
+datasetdir = 'dataset'
+checkpointdir = 'checkpoint'
 
 @app.route('/')
 def root():
@@ -79,12 +81,19 @@ def rawrender():
     depth_filename = depth_file.filename
     direct_filename = direct_file.filename
 
-    
-
+    # a copy for training
     albedo_file.save(albedo_filename)
     normal_file.save(normal_filename)
     depth_file.save(depth_filename)
     direct_file.save(direct_filename)
+
+    # a copy for response
+    # cannot use the same object for the defect.
+    # TODO: use bitstream to avoid overhead.
+    shutil.copyfile(albedo_filename, 'albedo.png')
+    shutil.copyfile(normal_filename, 'normal.png')
+    shutil.copyfile(depth_filename, 'depth.png')
+    shutil.copyfile(direct_filename, 'direct.png')
 
     infer()
 
@@ -92,12 +101,28 @@ def rawrender():
 
 @app.route('/gtupload', methods=['post'])
 def gttrain():
+
+    def get_timestamp(filename):
+        # make sure it contains the _
+        return int(filename.split('_')[1].split('.')[0])
+
     gt_file = request.files.get('gt')
     gt_filename = gt_file.filename
+    gt_timestamp = get_timestamp(gt_filename)
 
-    gt_file.save(gt_filename)
-
-    
+    # only start training after the gt is received.
+    # now, there will be some training samples suffixed by time.
+    for item in os.listdir('.'):
+        if len(item.split('_')) > 1:
+            # format in albedo_[timestamp].png
+            timestamp = get_timestamp(item)
+            timedelta = gt_timestamp - timestamp
+            if timedelta < 10 and timedelta >= 0:
+                # use this batch for training.
+                for buffer in ["albedo", "direct", "normal", "depth"]:
+                    shutil.move(buffer + '_' + str(timestamp) + '.png', os.path.join(datasetdir, buffer))
+                gt_file.save(os.path.join(datasetdir, "gt", "gt_" + str(timestamp) + ".png"))
+                break   # no more move is needed.
 
     return Response()
 
@@ -123,6 +148,17 @@ if __name__ == "__main__":
     netG.load_state_dict(loaded_model['state_dict_G'])
 
     print(" starting service ...")
+
+    if not os.path.isdir(datasetdir):
+        os.mkdir(datasetdir)
+        os.mkdir(os.path.join(datasetdir, 'albedo'))
+        os.mkdir(os.path.join(datasetdir, 'depth'))
+        os.mkdir(os.path.join(datasetdir, 'normal'))
+        os.mkdir(os.path.join(datasetdir, 'direct'))
+        os.mkdir(os.path.join(datasetdir, 'gt'))
+
+    if not os.path.isdir(checkpointdir):
+        os.mkdir(checkpointdir)
 
     app.run()
     
