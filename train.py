@@ -47,7 +47,7 @@ parser.add_argument('--resume_D', help='resume D')
 parser.add_argument('--workers', type=int, default=4,
                     help='number of threads for data loader')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
-parser.add_argument('--lamda', type=int, default=10,
+parser.add_argument('--lamda', type=int, default=50,
                     help='L1 regularization factor')
 opt = parser.parse_args()
 
@@ -153,7 +153,7 @@ def restore_image(image):
 
 def train(epoch):
     for (i, images) in enumerate(train_data):
-        netD.zero_grad()
+        # netD.zero_grad()
         optimizerD.zero_grad()
         optimizerG.zero_grad()
         (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
@@ -182,7 +182,7 @@ def train(epoch):
         err_d = (err_d_real + err_d_fake) * 0.5
         optimizerD.step()
 
-        netG.zero_grad()
+        # netG.zero_grad()
         output = netD(torch.cat((albedo, direct, normal, depth, fake_B), 1))
         # label.data.resize_(output.size()).fill_(real_label)
         label.resize_(output.size()).fill_(real_label)
@@ -192,9 +192,9 @@ def train(epoch):
         # print(1-_ssim_loss)
         # print(_ssim_loss.item())
         err_g = criterion(output, label) + opt.lamda \
-            * 0.3*criterion_l1(fake_B, gt) + opt.lamda * 0.7 * _ssim_loss
+            * 0.7*criterion_l1(fake_B, gt) + opt.lamda * 0.3 * _ssim_loss
         err_g.backward()
-        d_x_gx_2 = output.data.mean()
+
         optimizerG.step()
         print('=> Epoch[{}]({}/{}): Loss_D: {:.4f} Loss_G: {:.4f} '.format(
             epoch,
