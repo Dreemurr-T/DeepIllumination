@@ -14,20 +14,21 @@ from data import DataLoaderHelper
 
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from model import G, D, weights_init
+from model_backup import G, D, weights_init
 from util import load_image, save_image
 # from skimage.measure import compare_ssim as ssim
 # from skimage.metrics import structural_similarity as ssim
 from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
+checkpointdir = 'checkpoint'
 
 parser = argparse.ArgumentParser(description='DeepRendering-implemention')
-parser.add_argument('--dataset', required=True, help='output from unity')
+parser.add_argument('--dataset', default=".", help='output from unity')
 parser.add_argument('--train_batch_size', type=int,
                     default=1, help='batch size for training')
 parser.add_argument('--test_batch_size', type=int,
                     default=1, help='batch size for testing')
-parser.add_argument('--n_epoch', type=int, default=50,
+parser.add_argument('--n_epoch', type=int, default=25,
                     help='number of iterations')
 parser.add_argument('--n_channel_input', type=int,
                     default=4, help='number of input channels')
@@ -42,33 +43,20 @@ parser.add_argument('--beta1', type=float, default=0.5, help='beta1')
 parser.add_argument('--cuda', action='store_true', help='cuda')
 parser.add_argument('--resume_G', help='resume G')
 parser.add_argument('--resume_D', help='resume D')
-parser.add_argument('--workers', type=int, default=4,
+parser.add_argument('--workers', type=int, default=2,
                     help='number of threads for data loader')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 parser.add_argument('--lamda', type=int, default=10,
                     help='L1 regularization factor')
+
 opt = parser.parse_args()
 
 cudnn.benchmark = True
 
 torch.cuda.manual_seed(opt.seed)
 
-print('=> Loading datasets')
-
-root_dir = "dataset/"
-train_dir = join(root_dir + opt.dataset, "train")
-test_dir = join(root_dir + opt.dataset, "val")
-
-train_set = DataLoaderHelper(train_dir)
-val_set = DataLoaderHelper(test_dir)
-
 batch_size = opt.train_batch_size
 n_epoch = opt.n_epoch
-
-train_data = DataLoader(dataset=train_set, num_workers=opt.workers,
-                        batch_size=opt.train_batch_size, shuffle=True)
-val_data = DataLoader(dataset=val_set, num_workers=opt.workers,
-                      batch_size=opt.test_batch_size, shuffle=False)
 
 print('=> Building model')
 
@@ -113,10 +101,19 @@ depth = Variable(depth)
 gt = Variable(gt)
 label = Variable(label)
 
-
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-lastEpoch = 0
+
+G_filelist = os.listdir(checkpointdir)
+G_filelist = [x for x in G_filelist if x.startswith('netG')]
+G_filelist.sort()
+
+if len(G_filelist)>0:
+    opt.resume_G = os.path.join(checkpointdir, G_filelist[-1])
+    lastEpoch = int(opt.resume_G.split("_")[3].split(".")[0])
+    opt.resume_D = os.path.join(checkpointdir, "netD_model_epoch_"+str(lastEpoch) + ".pth")
+else:
+    lastEpoch = 0
 
 if opt.resume_G:
     if os.path.isfile(opt.resume_G):
@@ -147,8 +144,21 @@ def restore_image(image):
     image = image.clip(0, 255)
     return image
 
+root_dir = "dataset/"
+train_dir = join(root_dir + opt.dataset, "train")
+test_dir = join(root_dir + opt.dataset, "val")
+
+def load_training_dataset():
+    global train_set, train_data
+    print('=> Loading training datasets')
+    train_set = DataLoaderHelper(train_dir)
+    train_data = DataLoader(dataset=train_set, num_workers=opt.workers,
+                            batch_size=opt.train_batch_size, shuffle=True)
+
+load_training_dataset()
 
 def train(epoch):
+
     for (i, images) in enumerate(train_data):
         netD.zero_grad()
         (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
@@ -230,6 +240,14 @@ def save_checkpoint(epoch):
         os.mkdir(os.path.join("validation", opt.dataset))
 
     if epoch == n_epoch:
+
+        print('=> Loading validation datasets')
+
+        val_set = DataLoaderHelper(test_dir)
+
+        val_data = DataLoader(dataset=val_set, num_workers=opt.workers,
+                    batch_size=opt.test_batch_size, shuffle=False)
+
         for index, images in enumerate(val_data):
             (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
                 images[0], images[1], images[2], images[3], images[4])

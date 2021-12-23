@@ -8,3 +8,6 @@ config.json
 *.pyc
 
 *.blend1
+
+ui/dataset
+ui/checkpoint
