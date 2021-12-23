@@ -13,16 +13,33 @@ app = Flask(__name__)
 datasetdir = 'dataset'
 checkpointdir = 'checkpoint'
 
-@app.route('/')
-def root():
-    return render_template("index.html")
+prev_G_path = 'default.pth'
+
+N_CHANNEL_INPUT = 4
+N_CHANNEL_OUTPUT = 4
+N_GENERATOR_FILTERS = 64
+
+def load_model():
+    global netG
+
+    checkpointlist = os.listdir(checkpointdir)
+    checkpointlist.sort()
+    prev_G_path = checkpointlist[-1]
+    
+    print("loading model " + prev_G_path + " ...")
+    loaded_model = torch.load(os.path.join(checkpointdir,prev_G_path), map_location=torch.device('cpu'))
+    netG = G(N_CHANNEL_INPUT * 4, N_CHANNEL_OUTPUT, N_GENERATOR_FILTERS)
+    netG.load_state_dict(loaded_model['state_dict_G'])
+
 
 def infer():
     """
     Infer the result by plugin the inputs from save file.
     The output will be saved in result.png.
     """
-    global netG
+
+    if not os.path.exists(prev_G_path):
+        load_model()
 
     albedo_path = 'albedo.png'
     direct_path = 'direct.png'
@@ -39,6 +56,7 @@ def infer():
     normal = torch.autograd.Variable(normal_image).view(1, -1, 256, 256)
     depth = torch.autograd.Variable(depth_image).view(1, -1, 256, 256)
 
+    global netG
     start_time = time()
     out = netG(torch.cat((albedo, direct, normal, depth), 1))
     elapsed_time = time() - start_time
@@ -124,29 +142,13 @@ def gttrain():
                 gt_file.save(os.path.join(datasetdir, "gt", "gt_" + str(timestamp) + ".png"))
                 break   # no more move is needed.
 
-    return Response()
+    return Response()   # gt is received.
+
+@app.route('/')
+def root():
+    return render_template("index.html")
 
 if __name__ == "__main__":
-    print("loading model ...")
-    global netG
-
-    # read the generated checkpoint data from train.py
-    G_pth_path = '../checkpoint/JiaRan/netG_model_epoch_199.pth'
-    # D_pth_path = 'netD_model_epoch_199.pth'
-
-    parser = argparse.ArgumentParser(description='DeepRendering-server')
-    parser.add_argument('--n_channel_input', type=int,
-                        default=4, help='number of input channels')
-    parser.add_argument('--n_channel_output', type=int,
-                        default=4, help='number of output channels')
-    parser.add_argument('--n_generator_filters', type=int,
-                        default=64, help='number of initial generator filters')
-    opt = parser.parse_args()
-
-    loaded_model = torch.load(G_pth_path, map_location=torch.device('cpu'))
-    netG = G(opt.n_channel_input * 4, opt.n_channel_output, opt.n_generator_filters)
-    netG.load_state_dict(loaded_model['state_dict_G'])
-
     print(" starting service ...")
 
     if not os.path.isdir(datasetdir):
