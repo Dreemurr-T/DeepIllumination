@@ -19,22 +19,25 @@ class Generator(nn.Module):
         self.conv3 = nn.Conv2d(n_filters*2, n_filters*4, 4, 2, 1)
         self.conv4 = nn.Conv2d(n_filters*4, n_filters*8, 4, 2, 1)
         self.conv5 = nn.Conv2d(n_filters*8, n_filters*16, 4, 2, 1)
+        self.conv6 = nn.Conv2d(n_filters*16,n_filters*16,4,2,1)
 
-        self.deconv1 = nn.ConvTranspose2d(n_filters*16, n_filters*8, 4, 2, 1)
-        self.deconv2 = nn.ConvTranspose2d(n_filters*16, n_filters*4, 4, 2, 1)
-        self.deconv3 = nn.ConvTranspose2d(n_filters*8, n_filters*2, 4, 2, 1)
-        self.deconv4 = nn.ConvTranspose2d(n_filters*4, n_filters, 4, 2, 1)
-        self.deconv5 = nn.ConvTranspose2d(n_filters*2, n_channel_output, 4, 2, 1)
+        self.deconv1 = nn.ConvTranspose2d(n_filters*16,n_filters*16,4,2,1)
+        self.deconv2 = nn.ConvTranspose2d(n_filters*8*4, n_filters*8, 4, 2, 1)
+        self.deconv3 = nn.ConvTranspose2d(n_filters*8*3, n_filters*4, 4, 2, 1)
+        self.deconv4 = nn.ConvTranspose2d(n_filters*8, n_filters*2, 4, 2, 1)
+        self.deconv5 = nn.ConvTranspose2d(n_filters*4, n_filters, 4, 2, 1)
+        self.deconv6 = nn.ConvTranspose2d(n_filters*2, n_channel_output, 4, 2, 1)
 
         self.norm1 = nn.BatchNorm2d(n_filters)
         self.norm2 = nn.BatchNorm2d(n_filters*2)
         self.norm3 = nn.BatchNorm2d(n_filters*4)
         self.norm4 = nn.BatchNorm2d(n_filters*8)
+        self.norm5 = nn.BatchNorm2d(n_filters*16)
 
         self.leakyrelu = nn.LeakyReLU(0.1,True)
         self.relu = nn.ReLU(True)
         
-        self.dropout = nn.Dropout(0.2)
+        self.dropout = nn.Dropout(0.3)
         self.tanh = nn.Tanh()
     
     def forward(self, input):
@@ -42,18 +45,22 @@ class Generator(nn.Module):
         encoder2 = self.norm2(self.conv2(self.leakyrelu(encoder1)))
         encoder3 = self.norm3(self.conv3(self.leakyrelu(encoder2)))
         encoder4 = self.norm4(self.conv4(self.leakyrelu(encoder3)))
-        encoder5 = self.conv5(self.leakyrelu(encoder4))
+        encoder5 = self.norm5(self.conv5(self.leakyrelu(encoder4)))
+        encoder6 = self.conv6(self.leakyrelu(encoder5))
 
-        decoder1 = self.dropout(self.norm4(self.deconv1(self.relu(encoder5))))
-        decoder1 = torch.cat((decoder1,encoder4),1)
-        decoder2 = self.dropout(self.norm3(self.deconv2(self.relu(decoder1))))
-        decoder2 = torch.cat((decoder2,encoder3),1)
-        decoder3 = self.dropout(self.norm2(self.deconv3(self.relu(decoder2))))
-        decoder3 = torch.cat((decoder3,encoder2),1)
-        decoder4 = self.dropout(self.norm1(self.deconv4(self.relu(decoder3))))
-        decoder4 = torch.cat((decoder4,encoder1),1)
-        decoder5 = self.deconv5((self.relu(decoder4)))
-        output = self.tanh(decoder5)
+
+        decoder1 = self.dropout(self.norm5(self.deconv1(self.relu(encoder6))))
+        decoder1 = torch.cat((decoder1,encoder5),1)
+        decoder2 = self.dropout(self.norm4(self.deconv2(self.relu(decoder1))))
+        decoder2 = torch.cat((decoder2,encoder4),1)
+        decoder3 = self.dropout(self.norm3(self.deconv3(self.relu(decoder2))))
+        decoder3 = torch.cat((decoder3,encoder3),1)
+        decoder4 = self.dropout(self.norm2(self.deconv4(self.relu(decoder3))))
+        decoder4 = torch.cat((decoder4,encoder2),1)
+        decoder5 = self.dropout(self.norm1(self.deconv5(self.relu(decoder4))))
+        decoder5 = self.cat((decoder5,encoder1),1)
+        decoder6 = self.deconv6(self.relu(encoder5))
+        output = self.tanh(decoder6)
         return output
     
 class Discriminator(nn.Module):
