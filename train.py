@@ -40,7 +40,7 @@ parser.add_argument('--n_generator_filters', type=int,
 parser.add_argument('--n_discriminator_filters', type=int,
                     default=64, help='number of initial discriminator filters')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate')
-parser.add_argument('--beta1', type=float, default=0.5, help='beta1')
+parser.add_argument('--beta1', type=float, default=0.9, help='beta1')
 parser.add_argument('--cuda', action='store_true', help='cuda')
 parser.add_argument('--resume_G', help='resume G')
 parser.add_argument('--resume_D', help='resume D')
@@ -55,7 +55,6 @@ cudnn.benchmark = True
 
 torch.cuda.manual_seed(opt.seed)
 
-print('=> Loading datasets')
 
 root_dir = "dataset/"
 train_dir = join(root_dir + opt.dataset, "train")
@@ -72,7 +71,6 @@ train_data = DataLoader(dataset=train_set, num_workers=opt.workers,
 val_data = DataLoader(dataset=val_set, num_workers=opt.workers,
                       batch_size=opt.test_batch_size, shuffle=False)
 
-print('=> Building model')
 
 netG = Generator(opt.n_channel_input*4, opt.n_channel_output, opt.n_generator_filters)
 netG.apply(weights_init)
@@ -238,10 +236,6 @@ def save_checkpoint(epoch):
             for index, images in enumerate(val_data):
                 (albedo_cpu, direct_cpu, normal_cpu, depth_cpu, gt_cpu) = (
                     images[0], images[1], images[2], images[3], images[4])
-        #         # albedo.data.resize_(albedo_cpu.size()).copy_(albedo_cpu)
-        #         # direct.data.resize_(direct_cpu.size()).copy_(direct_cpu)
-        #         # normal.data.resize_(normal_cpu.size()).copy_(normal_cpu)
-        #         # depth.data.resize_(depth_cpu.size()).copy_(depth_cpu)
                 albedo.resize_(albedo_cpu.size()).copy_(albedo_cpu)
                 direct.resize_(direct_cpu.size()).copy_(direct_cpu)
                 normal.resize_(normal_cpu.size()).copy_(normal_cpu)
