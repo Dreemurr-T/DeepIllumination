@@ -119,8 +119,8 @@ label = Variable(label)
 
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-schedulerD = optim.lr_scheduler.StepLR(optimizerD,step_size=50,gamma=0.5)
-schedulerG = optim.lr_scheduler.StepLR(optimizerG,step_size=50,gamma=0.5)
+schedulerD = optim.lr_scheduler.StepLR(optimizerD,step_size=10,gamma=0.9)
+schedulerG = optim.lr_scheduler.StepLR(optimizerG,step_size=10,gamma=0.9)
 
 lastEpoch = 0
 
